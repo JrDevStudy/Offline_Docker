@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <!--    <link rel="stylesheet" href="./main.css">-->
+    <link rel="stylesheet" type="text/css" href="../css/common.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://getbootstrap.com/docs/5.3/assets/css/docs.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <title>뉴스</title>
+    <style>
+        .wrap {
+            width: 80%;
+            margin: 3% auto;
+        }
+
+        .search-box {
+            margin-bottom: 5%;
+        }
+    </style>
+
+    <script>
+        $(document).ready(function () {
+            // 로컬 스토리지에서 정보 가져오기
+            var emailId = localStorage.getItem("emailId");
+            // A 태그에 정보 표시
+            $("#myEmailId").text(emailId);
+
+            let selectedNews = []; // 선택된 뉴스 ID를 저장하는 배열
+            // 1. 뉴스 전체 리스트 조회
+            $.ajax({
+                type: "GET",
+                contentType: "application/json; charset=utf-8",
+                url: "http://43.201.241.17:8080/api/news/all",
+                data: JSON.stringify,
+                dataType: 'json',
+                headers: {
+                    "Authorization": localStorage.getItem("accessToken")
+                },
+                success: function (response) {
+                    let list = response.data;
+                    let htmlArr = [];
+                    for (let i = 0, length = list.length; i < length; i++) {
+                        let item = list[i];
+                        let cnt = i + 1;
+
+                        htmlArr.push('<tr>');
+
+                        htmlArr.push('<td>');
+                        htmlArr.push('<label class="newsNumber" data-id="' + item.id + '">' + cnt + '</label><br>');
+                        htmlArr.push('</td>');
+
+
+                        htmlArr.push('<td>');
+                        if (item.choiceNews) {
+                            htmlArr.push('<button class="btn btn-light choiceNews" id="choiceNews' + item.id + '" value="' + item.id + '" style="background-color:white;color:black;">' +
+                                '<label class="btn btn-light news" data-id="' + item.id + '">' + item.choiceNews + '</label></button><br>');
+                        } else {
+                            htmlArr.push('<button class="choiceNews" id="choiceNews' + item.id + '" value="' + item.id + '">choiceNews</button><br>');
+                        }
+                        htmlArr.push('</td>');
+
+                        htmlArr.push('<td>');
+                        htmlArr.push('<label class="news" data-id="' + item.id + '">' + item.message + '</label><br>');
+                        htmlArr.push('</td>');
+
+                        htmlArr.push('<td>');
+                        htmlArr.push('<label class="news" data-id="' + item.id + '">' + item.author + '</label>');
+                        htmlArr.push('</td>');
+
+                        htmlArr.push('<td>');
+                        htmlArr.push('<button type="button" class="btn btn-outline-dark newsUpdate" id="newsUpdate' + item.id + '" value="' + item.id + '">수정<br>');
+                        htmlArr.push('</td>');
+
+                        htmlArr.push('<td>');
+                        htmlArr.push('<button type="button" class="btn btn-outline-danger newsDelete" id="newsDelete' + item.id + '" value="' + item.id + '">삭제<br>');
+                        htmlArr.push('</td>');
+
+                        htmlArr.push('</tr>');
+                    }
+
+                    $('#tbodyNews').html(htmlArr.join(''));
+                    console.log(response);
+
+                },
+                error: function (e) {
+                    alert("Error: " + e.responseText);
+                }
+            });
+
+            // 뉴스 등록
+            $(document).ready(function () {
+                $(document).on('click', '.newsRegister', function () {
+
+                    // Reset the form fields
+                    $("#popupMessage1").val("");
+                    $("#popupAuthor1").val("");
+                    // modal 창 열기
+                    $("#newsRegisterModal").modal("show");
+                });
+
+                $("#popupRegisterButton").on('click', function () {
+                    let message = $("#popupMessage1").val();
+                    let author = $("#popupAuthor1").val();
+                    if (message === '' || author === '') {
+                        alert('메시지와 작성자 모두 입력해주세요.');
+                        return;
+                    }
+                    let data = {
+                        message: message,
+                        author: author,
+                    };
+
+                    $.ajax({
+                        type: "POST",
+                        contentType: "application/json; charset=utf-8",
+                        url: "http://43.201.241.17:8080/api/news/create",
+                        data: JSON.stringify(data),
+                        dataType: 'json',
+                        headers: {
+                            "Authorization": localStorage.getItem("accessToken")
+                        },
+                        success: function (response) {
+                            if (response.success === true) {
+                                // if (null !== response) {
+                                // console.log(response);
+                                alert('뉴스가 등록되었습니다.');
+                                // Close the register news modal
+                                $("#newsRegisterModal").modal("hide");
+                                // Refresh the page
+                                location.reload();
+                            } else {
+                                alert('등록 실패');
+                            }
+                        },
+                        error: function (e) {
+                            alert("Error: " + e.responseText);
+                        }
+                    });
+                });
+            });
+
+        });
+
+        // 선택하면 노출될 뉴스로 지정
+        $(document).on('click', '.choiceNews', function () {
+            let newsId = $(this).val();
+            if (!newsId) {
+                alert("ID is undefined.");
+                return;
+            }
+
+            $.ajax({
+                type: "POST",
+                contentType: "application/json; charset=utf-8",
+                url: "http://43.201.241.17:8080/api/news/choice/" + newsId,
+                dataType: 'json',
+                headers: {
+                    "Authorization": localStorage.getItem("accessToken")
+                },
+                success: function (response) {
+                    if (response.success === true) {
+                        location.reload();
+                        console.log(response);
+                    }
+                },
+                error: function (e) {
+                    alert("Error: " + e.responseText);
+                }
+            });
+        });
+
+
+        // 뉴스 수정
+        $(document).ready(function () {
+            // newsUpdate 버튼 클릭 시 팝업창 띄우기
+            $(document).on('click', '.newsUpdate', function () {
+                let newsId = $(this).val();
+                if (!newsId) {
+                    alert("ID is undefined.");
+                    return;
+                }
+                // 뉴스 정보를 가져와서 팝업창에 노출
+                $.ajax({
+                    type: "GET",
+                    contentType: "application/json; charset=utf-8",
+                    url: "http://43.201.241.17:8080/api/news/" + newsId,
+                    dataType: 'json',
+                    headers: {
+                        "Authorization": localStorage.getItem("accessToken")
+                    },
+                    success: function (response) {
+
+                        if (response.success === true) {
+                            console.log(response);
+                            let news = response.data;
+                            // 팝업창에 뉴스 정보 채우기
+                            $("#popupMessage").val(news.message);
+                            $("#popupAuthor").val(news.author);
+                            // 뉴스 수정 버튼에 newsId 저장
+                            $("#popupNewsId").val(newsId);
+                            // 팝업창 열기
+                            $("#newsUpdateModal").modal("show");
+                        }
+                    },
+                    error: function (e) {
+                        alert("Error: " + e.responseText);
+                    }
+                });
+            });
+
+            // 뉴스 수정
+            $("#popupUpdateButton").on('click', function () {
+                let newsId = $("#popupNewsId").val();
+                if (!newsId) {
+                    alert("ID is undefined.");
+                    return;
+                }
+                let data = {
+                    message: $("#popupMessage").val(),
+                    author: $("#popupAuthor").val(),
+                };
+                $.ajax({
+                    type: "PUT",
+                    contentType: "application/json; charset=utf-8",
+                    url: "http://43.201.241.17:8080/api/news/update/" + newsId,
+                    data: JSON.stringify(data),
+                    dataType: 'json',
+                    headers: {
+                        "Authorization": localStorage.getItem("accessToken")
+                    },
+                    success: function (response) {
+                        if (response.success === true) {
+                            console.log(response);
+                            alert('수정이 완료되었습니다.');
+                            // 팝업창 닫기
+                            $("#newsUpdateModal").modal("hide");
+                            // 화면 새로고침
+                            location.reload();
+                        } else {
+                            alert('실패');
+                        }
+                    },
+                    error: function (e) {
+                        alert("Error: " + e.responseText);
+                    }
+                });
+            });
+        });
+
+        // 뉴스 삭제
+        $(document).on('click', '.newsDelete', function () {
+
+            let newsId = $(this).val();
+            if (!newsId) {
+                alert("ID is undefined.");
+                return;
+            }
+
+            if (confirm('정말 삭제하시겠습니까?')) {
+                $.ajax({
+                    type: "DELETE",
+                    contentType: "application/json; charset=utf-8",
+                    url: "http://43.201.241.17:8080/api/news/delete/" + newsId,
+                    dataType: 'json',
+                    headers: {
+                        "Authorization": localStorage.getItem("accessToken")
+                    },
+                    success: function (response) {
+                        if (response.success === true) {
+                            console.log(response);
+                            // alert('삭제되었습니다.');
+                            location.reload();
+                        } else {
+                            alert('삭제 실패');
+                        }
+                    },
+                    error: function (e) {
+                        alert("Error: " + e.responseText);
+                    }
+                });
+            }
+        });
+
+        // 뉴스 검색
+        $(document).ready(function () {
+
+            $("#searchResultTable").hide();
+
+            $("#searchNewsForm").submit(function (event) {
+                event.preventDefault(); // 폼 전송 방지
+
+                let keyword = $("#keywordInput").val(); // 검색어 가져오기
+                // var keyword = $("#searchKeyword").val(); // 검색어 가져오기
+
+                if (keyword.trim() === '') { // 검색어가 비어있는 경우
+                    alert('검색어를 입력해주세요.');
+                    return; // 함수 종료
+                }
+
+                $.ajax({
+                    type: "GET",
+                    contentType: "application/json; charset=utf-8",
+                    url: "http://43.201.241.17:8080/api/news/search?keyword=" + keyword,
+                    data: JSON.stringify,
+                    // data: { keyword: keyword }, // 검색어를 URL parameter로 전달
+                    dataType: 'json',
+                    success: function (response) {
+                        if (response.success === true) {
+                            // 검색 결과를 출력하는 부분
+                            let searchResultTableBody = $("#searchResultTable tbody");
+                            searchResultTableBody.empty(); // 기존 검색 결과 삭제
+
+                            if (response.data.length > 0) {
+                                for (let i = 0; i < response.data.length; i++) {
+                                    let news = response.data[i];
+                                    let row = $("<tr></tr>");
+
+                                    row.append($("<td></td>").text(i + 1));
+                                    row.append($("<td></td>").text(news.message));
+                                    row.append($("<td></td>").text(news.author));
+
+                                    searchResultTableBody.append(row);
+                                }
+                                // 검색결과를 보이기
+                                $("#searchResultTable").show();
+                            } else {
+                                alert('검색 결과가 없습니다.');
+                            }
+                        } else {
+                            alert('다시 시도해주세요.')
+                        }
+                    },
+                    error: function (e) {
+                        alert("Error: " + e.responseText);
+                    }
+                });
+            });
+        });
+
+
+    </script>
+
+</head>
+<body>
+<!-- 상단 navbar -->
+<div class="nav-box">
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Everybot</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+                    aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <!--                    <li class="nav-item">-->
+                    <!--                        <a class="nav-link active" aria-current="page" href="#">Home</a>-->
+                    <!--                    </li>-->
+                    <li class="nav-item">
+                        <a class="nav-link" href="main.html">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="empList.html">직원 전체목록</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="newsList.html">뉴스 페이지</a>
+                    </li>
+                </ul>
+                <form class="d-flex" style="margin-right: 10px">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                               data-bs-toggle="dropdown" aria-expanded="false">
+                                <span id="myEmailId"></span>
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <li><a class="dropdown-item" id="logoutAdmin">로그아웃</a></li>
+                                <li><a class="dropdown-item" id="deleteAdmin">회원 탈퇴</a></li>
+                            </ul>
+                        </li>
+                    </ul>
+                </form>
+            </div>
+        </div>
+    </nav>
+</div>
+<div class="wrap">
+    <div class="search-box">
+        <form id="searchNewsForm" class="form-inline my-2 my-lg-0" style="margin-right: 20%">
+            <div class="row">
+                <div class="col-10">
+                    <input id="keywordInput" field="{keyword}" class="form-control mr-sm-2" type="search"
+                           placeholder="검색어를 입력하세요" aria-label="Search">
+                </div>
+                <div class="col-2">
+                    <button class="btn btn-outline-success my-2 my-sm-0" type="submit">Search</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div style="width: 1000px; align-content: center">
+
+        <!--뉴스 검색 목록-->
+        <div id="searchResult"></div>
+        <table id="searchResultTable" class="table">
+            <thead class="thead-dark">
+            <tr>
+                <th>No</th>
+                <th>Message</th>
+                <th>출처&작성자</th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+
+        <!--        <div class="row">-->
+        <!--        <div>-->
+        <!--            <div class="col-3" style="margin-bottom: 5%; float: right">-->
+        <!--                &lt;!&ndash; Button trigger modal &ndash;&gt;-->
+        <!--                <button type="button" class="btn btn-secondary" data-bs-toggle="modal"-->
+        <!--                        data-bs-target="#newsRegisterModal">-->
+        <!--                    뉴스 등록-->
+        <!--                </button>-->
+        <!--            </div>-->
+        <!--        </div>-->
+
+        <!--뉴스 전체 목록-->
+        <div class="table-box">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th scope="col">No</th>
+                    <th scope="col">뉴스 선택</th>
+                    <th scope="col">Message</th>
+                    <th scope="col">출처&작성자</th>
+                    <!--                    <div>-->
+                    <!--                        <div class="col-3" style="margin-bottom: 5%; float: right">-->
+                    <!-- Button trigger modal -->
+                    <button style="float: right" type="button" class="btn btn-secondary" data-bs-toggle="modal"
+                            data-bs-target="#newsRegisterModal">
+                        뉴스 등록
+                    </button>
+                    <!--                        </div>-->
+                    <!--                    </div>-->
+                </tr>
+                </thead>
+
+                <tbody class="table-group-divider" id="tbodyNews">
+                </tbody>
+                <!--                <tbody id="tbodyNewsRegister">-->
+                <!--                <input type="button" class="newsRegister" id="newsRegister" value="뉴스 등록">-->
+                <!--                </tbody>-->
+
+            </table>
+        </div>
+
+        <!-- 모달 창 HTML 구조 -->
+        <div class="modal fade" id="newsUpdateModal" tabindex="-1" role="dialog" aria-labelledby="newsUpdateModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="newsUpdateModalLabel">뉴스 수정</h5>
+<!--                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">-->
+<!--                            <span aria-hidden="true">&times;</span>-->
+<!--                        </button>-->
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="popupMessage">메시지</label>
+                            <input type="text" class="form-control" id="popupMessage" placeholder="메시지">
+                        </div>
+                        <div class="form-group">
+                            <label for="popupAuthor">작성자</label>
+                            <input type="text" class="form-control" id="popupAuthor" placeholder="작성자">
+                        </div>
+                        <input type="hidden" id="popupNewsId">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                        <button type="button" class="btn btn-primary" id="popupUpdateButton">수정</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!--뉴스 등록 modal-->
+        <div class="modal fade" id="newsRegisterModal" tabindex="-1" role="dialog"
+             aria-labelledby="newsRegisterModalLabel"
+             aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="newsRegisterModalLabel">뉴스 등록</h5>
+                        <!--                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">-->
+                        <!--                            <span aria-hidden="true">&times;</span>-->
+                        <!--                        </button>-->
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="popupMessage">메세지</label>
+                            <input type="text" class="form-control" id="popupMessage1">
+                        </div>
+                        <div class="form-group">
+                            <label for="popupAuthor">작성자</label>
+                            <input type="text" class="form-control" id="popupAuthor1">
+                        </div>
+                        <input type="hidden" id="popupNewsId1">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+                        <button type="button" class="btn btn-primary" id="popupRegisterButton">등록</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
